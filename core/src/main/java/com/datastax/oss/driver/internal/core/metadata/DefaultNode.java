@@ -180,27 +180,8 @@ public class DefaultNode implements Node {
   }
 
   @Override
-  public boolean equals(Object other) {
-    if (other == this) {
-      return true;
-    } else if (other instanceof Node) {
-      Node that = (Node) other;
-      // hostId is the natural identifier, but unfortunately we don't know it for contact points
-      // until the driver has opened the first connection.
-      return this.endPoint.equals(that.getEndPoint());
-    } else {
-      return false;
-    }
-  }
-
-  @Override
-  public int hashCode() {
-    return endPoint.hashCode();
-  }
-
-  @Override
   public String toString() {
-    return endPoint.toString();
+    return String.format("%s(%s,%s)", super.toString(), hostId, endPoint);
   }
 
   /** Note: deliberately not exposed by the public interface. */

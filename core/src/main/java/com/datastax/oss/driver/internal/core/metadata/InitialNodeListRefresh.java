@@ -82,7 +82,7 @@ class InitialNodeListRefresh extends NodesRefresh {
     ImmutableList.Builder<Object> eventsBuilder = ImmutableList.builder();
 
     for (DefaultNode newNode : newNodes.values()) {
-      if (!contactPoints.contains(newNode)) {
+      if (findIn(contactPoints, newNode.getEndPoint()) == null) {
         eventsBuilder.add(NodeStateEvent.added(newNode));
       }
     }
