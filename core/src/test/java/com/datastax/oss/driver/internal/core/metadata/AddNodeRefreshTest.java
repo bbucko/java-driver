@@ -23,6 +23,7 @@ import com.datastax.oss.driver.api.core.uuid.Uuids;
 import com.datastax.oss.driver.internal.core.context.InternalDriverContext;
 import com.datastax.oss.driver.internal.core.metrics.MetricsFactory;
 import com.datastax.oss.driver.shaded.guava.common.collect.ImmutableMap;
+import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
@@ -113,6 +114,7 @@ public class AddNodeRefreshTest {
         new DefaultMetadata(
             ImmutableMap.of(node1.getHostId(), node1), Collections.emptyMap(), null);
     DefaultEndPoint newEndPoint = TestNodeFactory.newEndPoint(2);
+    InetSocketAddress newBroadcastRpcAddress = newEndPoint.resolve();
     UUID newSchemaVersion = Uuids.random();
     DefaultNodeInfo newNodeInfo =
         DefaultNodeInfo.builder()
@@ -121,6 +123,7 @@ public class AddNodeRefreshTest {
             .withDatacenter("dc1")
             .withRack("rack2")
             .withSchemaVersion(newSchemaVersion)
+            .withBroadcastRpcAddress(newBroadcastRpcAddress)
             .build();
     AddNodeRefresh refresh = new AddNodeRefresh(newNodeInfo);
 
@@ -129,13 +132,11 @@ public class AddNodeRefreshTest {
 
     // Then
     Map<UUID, Node> newNodes = result.newMetadata.getNodes();
-    assertThat(newNodes).containsOnlyKeys(node1.getHostId());
-    Node node1Updated = newNodes.get(node1.getHostId());
-    assertThat(node1Updated.getHostId()).isEqualTo(node1.getHostId());
-    assertThat(node1Updated.getEndPoint()).isEqualTo(newEndPoint);
-    assertThat(node1Updated.getDatacenter()).isEqualTo("dc1");
-    assertThat(node1Updated.getRack()).isEqualTo("rack2");
-    assertThat(node1Updated.getSchemaVersion()).isEqualTo(newSchemaVersion);
-    assertThat(result.events).containsExactly(NodeStateEvent.added((DefaultNode) node1Updated));
+    assertThat(newNodes).hasSize(1).containsEntry(node1.getHostId(), node1);
+    assertThat(node1.getEndPoint()).isEqualTo(newEndPoint);
+    assertThat(node1.getDatacenter()).isEqualTo("dc1");
+    assertThat(node1.getRack()).isEqualTo("rack2");
+    assertThat(node1.getSchemaVersion()).isEqualTo(newSchemaVersion);
+    assertThat(result.events).containsExactly(TopologyEvent.suggestUp(newBroadcastRpcAddress));
   }
 }
