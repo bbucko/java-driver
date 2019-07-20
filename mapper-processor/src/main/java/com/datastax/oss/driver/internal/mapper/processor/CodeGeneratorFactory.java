@@ -64,9 +64,8 @@ public interface CodeGeneratorFactory {
   /**
    * The implementation of a {@link Dao}-annotated interface.
    *
-   * <p>The default code factory calls {@link #newDaoImplementationMethod(ExecutableElement, Map,
-   * DaoImplementationSharedCode)} for each non-static, non-default method, but this is not a hard
-   * requirement.
+   * <p>The default code factory calls {@link #newDaoImplementationMethod} for each non-static,
+   * non-default method, but this is not a hard requirement.
    */
   CodeGenerator newDaoImplementation(TypeElement interfaceElement);
 
@@ -80,6 +79,7 @@ public interface CodeGeneratorFactory {
   Optional<MethodGenerator> newDaoImplementationMethod(
       ExecutableElement methodElement,
       Map<Name, TypeElement> typeParameters,
+      MethodMessager methodMessager,
       DaoImplementationSharedCode enclosingClass);
 
   DaoReturnTypeParser getDaoReturnTypeParser();

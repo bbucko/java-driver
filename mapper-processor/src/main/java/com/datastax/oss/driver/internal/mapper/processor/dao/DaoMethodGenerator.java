@@ -21,6 +21,7 @@ import com.datastax.oss.driver.api.mapper.annotations.CqlName;
 import com.datastax.oss.driver.api.mapper.annotations.StatementAttributes;
 import com.datastax.oss.driver.api.querybuilder.QueryBuilder;
 import com.datastax.oss.driver.internal.mapper.processor.MethodGenerator;
+import com.datastax.oss.driver.internal.mapper.processor.MethodMessager;
 import com.datastax.oss.driver.internal.mapper.processor.ProcessorContext;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.MethodSpec;
@@ -42,6 +43,7 @@ import javax.lang.model.type.TypeMirror;
 public abstract class DaoMethodGenerator implements MethodGenerator {
 
   protected final ExecutableElement methodElement;
+  protected final MethodMessager methodMessager;
   protected final DaoImplementationSharedCode enclosingClass;
   protected final ProcessorContext context;
   protected final Map<Name, TypeElement> typeParameters;
@@ -49,10 +51,12 @@ public abstract class DaoMethodGenerator implements MethodGenerator {
   public DaoMethodGenerator(
       ExecutableElement methodElement,
       Map<Name, TypeElement> typeParameters,
+      MethodMessager methodMessager,
       DaoImplementationSharedCode enclosingClass,
       ProcessorContext context) {
     this.methodElement = methodElement;
     this.typeParameters = typeParameters;
+    this.methodMessager = methodMessager;
     this.enclosingClass = enclosingClass;
     this.context = context;
   }
@@ -66,13 +70,8 @@ public abstract class DaoMethodGenerator implements MethodGenerator {
             .getDaoReturnTypeParser()
             .parse(methodElement.getReturnType(), typeParameters);
     if (!validKinds.contains(returnType.getKind())) {
-      context
-          .getMessager()
-          .error(
-              methodElement,
-              "Invalid return type: %s methods must return one of %s",
-              annotationName,
-              validKinds);
+      methodMessager.error(
+          "Invalid return type: %s methods must return one of %s", annotationName, validKinds);
       return null;
     }
     return returnType;
@@ -98,15 +97,12 @@ public abstract class DaoMethodGenerator implements MethodGenerator {
         try {
           CqlIdentifier.fromCql(bindMarkerName);
         } catch (IllegalArgumentException ignored) {
-          context
-              .getMessager()
-              .warn(
-                  methodElement,
-                  "Invalid "
-                      + valueDescription
-                      + " value: "
-                      + "'%s' is not a valid placeholder, the generated query will probably fail",
-                  annotationValue);
+          methodMessager.warn(
+              "Invalid "
+                  + valueDescription
+                  + " value: "
+                  + "'%s' is not a valid placeholder, the generated query will probably fail",
+              annotationValue);
         }
         methodBuilder.addCode(
             ".$L($T.bindMarker($S))", dslMethodName, QueryBuilder.class, bindMarkerName);
@@ -114,16 +110,13 @@ public abstract class DaoMethodGenerator implements MethodGenerator {
         try {
           Number ignored = numberParser.apply(annotationValue);
         } catch (NumberFormatException ignored) {
-          context
-              .getMessager()
-              .warn(
-                  methodElement,
-                  "Invalid "
-                      + valueDescription
-                      + " value: "
-                      + "'%s' is not a bind marker name and can't be parsed as a number literal "
-                      + "either, the generated query will probably fail",
-                  annotationValue);
+          methodMessager.warn(
+              "Invalid "
+                  + valueDescription
+                  + " value: "
+                  + "'%s' is not a bind marker name and can't be parsed as a number literal "
+                  + "either, the generated query will probably fail",
+              annotationValue);
         }
         methodBuilder.addCode(".$L($L)", dslMethodName, annotationValue);
       }
@@ -190,16 +183,11 @@ public abstract class DaoMethodGenerator implements MethodGenerator {
       for (VariableElement parameter : parameters) {
         CqlName cqlName = parameter.getAnnotation(CqlName.class);
         if (cqlName == null) {
-          context
-              .getMessager()
-              .error(
-                  parameter,
-                  "Method %s: parameter %s is declared in a compiled method "
-                      + "and refers to a bind marker "
-                      + "and thus must be annotated with @%s",
-                  methodElement,
-                  parameter.getSimpleName(),
-                  CqlName.class.getSimpleName());
+          methodMessager.error(
+              "Parameter %s is declared in a compiled method "
+                  + "and refers to a bind marker "
+                  + "and thus must be annotated with @%s",
+              parameter.getSimpleName(), CqlName.class.getSimpleName());
           valid = false;
         }
       }
@@ -211,15 +199,9 @@ public abstract class DaoMethodGenerator implements MethodGenerator {
     for (VariableElement parameter : parameters) {
       CqlName cqlName = parameter.getAnnotation(CqlName.class);
       if (cqlName != null) {
-        context
-            .getMessager()
-            .warn(
-                parameter,
-                "Method %s: parameter %s does not refer to a bind marker, "
-                    + "@%s annotation will be ignored",
-                methodElement,
-                parameter.getSimpleName(),
-                CqlName.class.getSimpleName());
+        methodMessager.warn(
+            "Parameter %s does not refer to a bind marker, " + "@%s annotation will be ignored",
+            parameter.getSimpleName(), CqlName.class.getSimpleName());
       }
     }
   }

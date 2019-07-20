@@ -19,6 +19,7 @@ import com.datastax.oss.driver.api.core.cql.BoundStatement;
 import com.datastax.oss.driver.api.core.data.SettableByName;
 import com.datastax.oss.driver.api.mapper.annotations.SetEntity;
 import com.datastax.oss.driver.api.mapper.entity.saving.NullSavingStrategy;
+import com.datastax.oss.driver.internal.mapper.processor.MethodMessager;
 import com.datastax.oss.driver.internal.mapper.processor.ProcessorContext;
 import com.datastax.oss.driver.internal.mapper.processor.util.generation.GeneratedCodePatterns;
 import com.squareup.javapoet.ClassName;
@@ -39,9 +40,10 @@ public class DaoSetEntityMethodGenerator extends DaoMethodGenerator {
   public DaoSetEntityMethodGenerator(
       ExecutableElement methodElement,
       Map<Name, TypeElement> typeParameters,
+      MethodMessager methodMessager,
       DaoImplementationSharedCode enclosingClass,
       ProcessorContext context) {
-    super(methodElement, typeParameters, enclosingClass, context);
+    super(methodElement, typeParameters, methodMessager, enclosingClass, context);
     nullSavingStrategyValidation = new NullSavingStrategyValidation(context);
   }
 
@@ -55,12 +57,8 @@ public class DaoSetEntityMethodGenerator extends DaoMethodGenerator {
     // Validate the parameters: one is an annotated entity, and the other a subtype of
     // SettableByName.
     if (methodElement.getParameters().size() != 2) {
-      context
-          .getMessager()
-          .error(
-              methodElement,
-              "Wrong number of parameters: %s methods must have two",
-              SetEntity.class.getSimpleName());
+      methodMessager.error(
+          "Wrong number of parameters: %s methods must have two", SetEntity.class.getSimpleName());
       return Optional.empty();
     }
     TypeMirror targetParameterType = null;
@@ -80,14 +78,10 @@ public class DaoSetEntityMethodGenerator extends DaoMethodGenerator {
       }
     }
     if (entityParameterName == null || targetParameterName == null) {
-      context
-          .getMessager()
-          .error(
-              methodElement,
-              "Wrong parameter types: %s methods must take a %s "
-                  + "and an annotated entity (in any order)",
-              SetEntity.class.getSimpleName(),
-              SettableByName.class.getSimpleName());
+      methodMessager.error(
+          "Wrong parameter types: %s methods must take a %s "
+              + "and an annotated entity (in any order)",
+          SetEntity.class.getSimpleName(), SettableByName.class.getSimpleName());
       return Optional.empty();
     }
 
@@ -96,25 +90,17 @@ public class DaoSetEntityMethodGenerator extends DaoMethodGenerator {
     boolean isVoid = returnType.getKind() == TypeKind.VOID;
     if (isVoid) {
       if (context.getClassUtils().isSame(targetParameterType, BoundStatement.class)) {
-        context
-            .getMessager()
-            .warn(
-                methodElement,
-                "BoundStatement is immutable, "
-                    + "this method will not modify '%s' in place. "
-                    + "It should probably return BoundStatement rather than void",
-                targetParameterName);
+        methodMessager.warn(
+            "BoundStatement is immutable, "
+                + "this method will not modify '%s' in place. "
+                + "It should probably return BoundStatement rather than void",
+            targetParameterName);
       }
     } else if (!context.getTypeUtils().isSameType(returnType, targetParameterType)) {
-      context
-          .getMessager()
-          .error(
-              methodElement,
-              "Invalid return type: %s methods must either be void, or return the same "
-                  + "type as their settable parameter (in this case, %s to match '%s')",
-              SetEntity.class.getSimpleName(),
-              targetParameterType,
-              targetParameterName);
+      methodMessager.error(
+          "Invalid return type: %s methods must either be void, or return the same "
+              + "type as their settable parameter (in this case, %s to match '%s')",
+          SetEntity.class.getSimpleName(), targetParameterType, targetParameterName);
       return Optional.empty();
     }
 

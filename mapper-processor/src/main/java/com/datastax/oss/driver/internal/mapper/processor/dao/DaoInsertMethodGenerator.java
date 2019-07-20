@@ -31,6 +31,7 @@ import com.datastax.oss.driver.api.core.cql.BoundStatementBuilder;
 import com.datastax.oss.driver.api.core.cql.SimpleStatement;
 import com.datastax.oss.driver.api.mapper.annotations.Insert;
 import com.datastax.oss.driver.api.mapper.entity.saving.NullSavingStrategy;
+import com.datastax.oss.driver.internal.mapper.processor.MethodMessager;
 import com.datastax.oss.driver.internal.mapper.processor.ProcessorContext;
 import com.datastax.oss.driver.internal.mapper.processor.util.generation.GeneratedCodePatterns;
 import com.datastax.oss.driver.shaded.guava.common.collect.ImmutableSet;
@@ -53,9 +54,10 @@ public class DaoInsertMethodGenerator extends DaoMethodGenerator {
   public DaoInsertMethodGenerator(
       ExecutableElement methodElement,
       Map<Name, TypeElement> typeParameters,
+      MethodMessager methodMessager,
       DaoImplementationSharedCode enclosingClass,
       ProcessorContext context) {
-    super(methodElement, typeParameters, enclosingClass, context);
+    super(methodElement, typeParameters, methodMessager, enclosingClass, context);
     nullSavingStrategyValidation = new NullSavingStrategyValidation(context);
   }
 
@@ -90,12 +92,9 @@ public class DaoInsertMethodGenerator extends DaoMethodGenerator {
             ? null
             : EntityUtils.asEntityElement(parameters.get(0), typeParameters);
     if (entityElement == null) {
-      context
-          .getMessager()
-          .error(
-              methodElement,
-              "%s methods must take the entity to insert as the first parameter",
-              Insert.class.getSimpleName());
+      methodMessager.error(
+          "%s methods must take the entity to insert as the first parameter",
+          Insert.class.getSimpleName());
       return Optional.empty();
     }
 
@@ -107,12 +106,9 @@ public class DaoInsertMethodGenerator extends DaoMethodGenerator {
     }
     if (returnType.getEntityElement() != null
         && !returnType.getEntityElement().equals(entityElement)) {
-      context
-          .getMessager()
-          .error(
-              methodElement,
-              "Invalid return type: %s methods must return the same entity as their argument ",
-              Insert.class.getSimpleName());
+      methodMessager.error(
+          "Invalid return type: %s methods must return the same entity as their argument ",
+          Insert.class.getSimpleName());
       return Optional.empty();
     }
 

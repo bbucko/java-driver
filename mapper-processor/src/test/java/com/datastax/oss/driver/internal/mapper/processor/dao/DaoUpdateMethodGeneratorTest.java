@@ -125,7 +125,7 @@ public class DaoUpdateMethodGeneratorTest extends DaoMethodGeneratorTest {
     // given
     ProcessorContext processorContext = mock(ProcessorContext.class);
     DaoUpdateMethodGenerator daoUpdateMethodGenerator =
-        new DaoUpdateMethodGenerator(null, null, null, processorContext);
+        new DaoUpdateMethodGenerator(null, null, null, null, processorContext);
     MethodSpec.Builder builder = MethodSpec.constructorBuilder();
 
     // when
@@ -141,7 +141,7 @@ public class DaoUpdateMethodGeneratorTest extends DaoMethodGeneratorTest {
     // given
     ProcessorContext processorContext = mock(ProcessorContext.class);
     DaoUpdateMethodGenerator daoUpdateMethodGenerator =
-        new DaoUpdateMethodGenerator(null, null, null, processorContext);
+        new DaoUpdateMethodGenerator(null, null, null, null, processorContext);
     MethodSpec.Builder builder = MethodSpec.constructorBuilder();
 
     // when

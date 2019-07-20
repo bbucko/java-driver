@@ -23,6 +23,7 @@ import com.datastax.oss.driver.api.core.cql.Row;
 import com.datastax.oss.driver.api.core.data.GettableByName;
 import com.datastax.oss.driver.api.mapper.annotations.Entity;
 import com.datastax.oss.driver.api.mapper.annotations.GetEntity;
+import com.datastax.oss.driver.internal.mapper.processor.MethodMessager;
 import com.datastax.oss.driver.internal.mapper.processor.ProcessorContext;
 import com.datastax.oss.driver.internal.mapper.processor.util.generation.GeneratedCodePatterns;
 import com.squareup.javapoet.ClassName;
@@ -53,9 +54,10 @@ public class DaoGetEntityMethodGenerator extends DaoMethodGenerator {
   public DaoGetEntityMethodGenerator(
       ExecutableElement methodElement,
       Map<Name, TypeElement> typeParameters,
+      MethodMessager methodMessager,
       DaoImplementationSharedCode enclosingClass,
       ProcessorContext context) {
-    super(methodElement, typeParameters, enclosingClass, context);
+    super(methodElement, typeParameters, methodMessager, enclosingClass, context);
   }
 
   @Override
@@ -63,12 +65,9 @@ public class DaoGetEntityMethodGenerator extends DaoMethodGenerator {
 
     // Validate the parameter: there must be exactly one, of type GettableByName or a ResultSet:
     if (methodElement.getParameters().size() != 1) {
-      context
-          .getMessager()
-          .error(
-              methodElement,
-              "Wrong number of parameters: %s methods must have exactly one",
-              GetEntity.class.getSimpleName());
+      methodMessager.error(
+          "Wrong number of parameters: %s methods must have exactly one",
+          GetEntity.class.getSimpleName());
       return Optional.empty();
     }
     VariableElement parameterElement = methodElement.getParameters().get(0);
@@ -79,15 +78,12 @@ public class DaoGetEntityMethodGenerator extends DaoMethodGenerator {
     boolean parameterIsAsyncResultSet =
         context.getClassUtils().isSame(parameterType, AsyncResultSet.class);
     if (!parameterIsGettable && !parameterIsResultSet && !parameterIsAsyncResultSet) {
-      context
-          .getMessager()
-          .error(
-              parameterElement,
-              "Invalid parameter type: %s methods must take a %s, %s or %s",
-              GetEntity.class.getSimpleName(),
-              GettableByName.class.getSimpleName(),
-              ResultSet.class.getSimpleName(),
-              AsyncResultSet.class.getSimpleName());
+      methodMessager.error(
+          "Invalid parameter type: %s methods must take a %s, %s or %s",
+          GetEntity.class.getSimpleName(),
+          GettableByName.class.getSimpleName(),
+          ResultSet.class.getSimpleName(),
+          AsyncResultSet.class.getSimpleName());
       return Optional.empty();
     }
 
@@ -101,28 +97,22 @@ public class DaoGetEntityMethodGenerator extends DaoMethodGenerator {
       Element element = ((DeclaredType) returnType).asElement();
       if (context.getClassUtils().isSame(element, PagingIterable.class)) {
         if (!parameterIsResultSet) {
-          context
-              .getMessager()
-              .error(
-                  methodElement,
-                  "Invalid return type: %s methods must return %s if the argument is %s",
-                  GetEntity.class.getSimpleName(),
-                  PagingIterable.class.getSimpleName(),
-                  ResultSet.class.getSimpleName());
+          methodMessager.error(
+              "Invalid return type: %s methods must return %s if the argument is %s",
+              GetEntity.class.getSimpleName(),
+              PagingIterable.class.getSimpleName(),
+              ResultSet.class.getSimpleName());
           return Optional.empty();
         }
         entityElement = EntityUtils.typeArgumentAsEntityElement(returnType, typeParameters);
         transformation = Transformation.MAP;
       } else if (context.getClassUtils().isSame(element, MappedAsyncPagingIterable.class)) {
         if (!parameterIsAsyncResultSet) {
-          context
-              .getMessager()
-              .error(
-                  methodElement,
-                  "Invalid return type: %s methods must return %s if the argument is %s",
-                  GetEntity.class.getSimpleName(),
-                  MappedAsyncPagingIterable.class.getSimpleName(),
-                  AsyncResultSet.class.getSimpleName());
+          methodMessager.error(
+              "Invalid return type: %s methods must return %s if the argument is %s",
+              GetEntity.class.getSimpleName(),
+              MappedAsyncPagingIterable.class.getSimpleName(),
+              AsyncResultSet.class.getSimpleName());
           return Optional.empty();
         }
         entityElement = EntityUtils.typeArgumentAsEntityElement(returnType, typeParameters);
@@ -130,16 +120,13 @@ public class DaoGetEntityMethodGenerator extends DaoMethodGenerator {
       }
     }
     if (entityElement == null) {
-      context
-          .getMessager()
-          .error(
-              methodElement,
-              "Invalid return type: "
-                  + "%s methods must return a %s-annotated class, or a %s or %s thereof",
-              GetEntity.class.getSimpleName(),
-              Entity.class.getSimpleName(),
-              PagingIterable.class.getSimpleName(),
-              MappedAsyncPagingIterable.class.getSimpleName());
+      methodMessager.error(
+          "Invalid return type: "
+              + "%s methods must return a %s-annotated class, or a %s or %s thereof",
+          GetEntity.class.getSimpleName(),
+          Entity.class.getSimpleName(),
+          PagingIterable.class.getSimpleName(),
+          MappedAsyncPagingIterable.class.getSimpleName());
       return Optional.empty();
     }
 

@@ -27,6 +27,7 @@ import com.datastax.oss.driver.api.core.cql.BoundStatementBuilder;
 import com.datastax.oss.driver.api.core.cql.SimpleStatement;
 import com.datastax.oss.driver.api.mapper.annotations.Update;
 import com.datastax.oss.driver.api.mapper.entity.saving.NullSavingStrategy;
+import com.datastax.oss.driver.internal.mapper.processor.MethodMessager;
 import com.datastax.oss.driver.internal.mapper.processor.ProcessorContext;
 import com.datastax.oss.driver.internal.mapper.processor.entity.EntityDefinition;
 import com.datastax.oss.driver.internal.mapper.processor.entity.PropertyDefinition;
@@ -52,9 +53,10 @@ public class DaoUpdateMethodGenerator extends DaoMethodGenerator {
   public DaoUpdateMethodGenerator(
       ExecutableElement methodElement,
       Map<Name, TypeElement> typeParameters,
+      MethodMessager methodMessager,
       DaoImplementationSharedCode enclosingClass,
       ProcessorContext context) {
-    super(methodElement, typeParameters, enclosingClass, context);
+    super(methodElement, typeParameters, methodMessager, enclosingClass, context);
     nullSavingStrategyValidation = new NullSavingStrategyValidation(context);
   }
 
@@ -80,12 +82,9 @@ public class DaoUpdateMethodGenerator extends DaoMethodGenerator {
             ? null
             : EntityUtils.asEntityElement(parameters.get(0), typeParameters);
     if (entityElement == null) {
-      context
-          .getMessager()
-          .error(
-              methodElement,
-              "%s methods must take the entity to update as the first parameter",
-              Update.class.getSimpleName());
+      methodMessager.error(
+          "%s methods must take the entity to update as the first parameter",
+          Update.class.getSimpleName());
       return Optional.empty();
     }
     warnIfCqlNamePresent(parameters.subList(0, 1));
@@ -216,12 +215,9 @@ public class DaoUpdateMethodGenerator extends DaoMethodGenerator {
 
   private void maybeAddIfClause(MethodSpec.Builder methodBuilder, Update annotation) {
     if (annotation.ifExists() && !annotation.customIfClause().isEmpty()) {
-      context
-          .getMessager()
-          .error(
-              methodElement,
-              "Invalid annotation parameters: %s cannot have both ifExists and customIfClause",
-              Update.class.getSimpleName());
+      methodMessager.error(
+          "Invalid annotation parameters: %s cannot have both ifExists and customIfClause",
+          Update.class.getSimpleName());
     }
 
     if (annotation.ifExists()) {

@@ -26,6 +26,7 @@ import com.datastax.oss.driver.api.core.cql.BoundStatement;
 import com.datastax.oss.driver.api.core.cql.BoundStatementBuilder;
 import com.datastax.oss.driver.api.core.cql.SimpleStatement;
 import com.datastax.oss.driver.api.mapper.annotations.Delete;
+import com.datastax.oss.driver.internal.mapper.processor.MethodMessager;
 import com.datastax.oss.driver.internal.mapper.processor.ProcessorContext;
 import com.datastax.oss.driver.internal.mapper.processor.entity.EntityDefinition;
 import com.datastax.oss.driver.internal.mapper.processor.entity.PropertyDefinition;
@@ -54,9 +55,10 @@ public class DaoDeleteMethodGenerator extends DaoMethodGenerator {
   public DaoDeleteMethodGenerator(
       ExecutableElement methodElement,
       Map<Name, TypeElement> typeParameters,
+      MethodMessager methodMessager,
       DaoImplementationSharedCode enclosingClass,
       ProcessorContext context) {
-    super(methodElement, typeParameters, enclosingClass, context);
+    super(methodElement, typeParameters, methodMessager, enclosingClass, context);
   }
 
   protected Set<DaoReturnTypeKind> getSupportedReturnTypes() {
@@ -70,12 +72,9 @@ public class DaoDeleteMethodGenerator extends DaoMethodGenerator {
     Delete annotation = methodElement.getAnnotation(Delete.class);
     assert annotation != null;
     if (annotation.ifExists() && !annotation.customIfClause().isEmpty()) {
-      context
-          .getMessager()
-          .error(
-              methodElement,
-              "Invalid annotation parameters: %s cannot have both ifExists and customIfClause",
-              Delete.class.getSimpleName());
+      methodMessager.error(
+          "Invalid annotation parameters: %s cannot have both ifExists and customIfClause",
+          Delete.class.getSimpleName());
       return Optional.empty();
     }
 
@@ -93,13 +92,10 @@ public class DaoDeleteMethodGenerator extends DaoMethodGenerator {
     EntityDefinition entityDefinition;
     boolean hasEntityParameter;
     if (parameters.isEmpty()) {
-      context
-          .getMessager()
-          .error(
-              methodElement,
-              "Wrong number of parameters: %s methods with no custom clause "
-                  + "must take either an entity instance, or the partition key components",
-              Delete.class.getSimpleName());
+      methodMessager.error(
+          "Wrong number of parameters: %s methods with no custom clause "
+              + "must take either an entity instance, or the partition key components",
+          Delete.class.getSimpleName());
       return Optional.empty();
     }
     String customWhereClause = annotation.customWhereClause();
@@ -113,27 +109,20 @@ public class DaoDeleteMethodGenerator extends DaoMethodGenerator {
     final int primaryKeyParameterCount;
     if (hasEntityParameter) {
       if (!customWhereClause.isEmpty()) {
-        context
-            .getMessager()
-            .error(
-                methodElement,
-                "Invalid parameter list: %s methods that have a custom where clause "
-                    + "must not take an Entity (%s) as a parameter",
-                Delete.class.getSimpleName(),
-                entityElement.getSimpleName());
+        methodMessager.error(
+            "Invalid parameter list: %s methods that have a custom where clause "
+                + "must not take an Entity (%s) as a parameter",
+            Delete.class.getSimpleName(), entityElement.getSimpleName());
       }
       entityDefinition = context.getEntityFactory().getDefinition(entityElement);
       primaryKeyParameterCount = entityDefinition.getPrimaryKey().size();
     } else {
       entityElement = getEntityFromAnnotation();
       if (entityElement == null) {
-        context
-            .getMessager()
-            .error(
-                methodElement,
-                "Missing entity class: %s methods that do not operate on an entity "
-                    + "instance must have an 'entityClass' argument",
-                Delete.class.getSimpleName());
+        methodMessager.error(
+            "Missing entity class: %s methods that do not operate on an entity "
+                + "instance must have an 'entityClass' argument",
+            Delete.class.getSimpleName());
         return Optional.empty();
       } else {
         entityDefinition = context.getEntityFactory().getDefinition(entityElement);
@@ -150,15 +139,10 @@ public class DaoDeleteMethodGenerator extends DaoMethodGenerator {
                 entityDefinition.getPrimaryKey().stream()
                     .map(d -> d.getType().asTypeName())
                     .collect(Collectors.toList());
-            context
-                .getMessager()
-                .error(
-                    methodElement,
-                    "Invalid parameter list: %s methods that have a custom if clause"
-                        + "must specify the entire primary key (expected primary keys of %s: %s)",
-                    Delete.class.getSimpleName(),
-                    entityElement.getSimpleName(),
-                    primaryKeyTypes);
+            methodMessager.error(
+                "Invalid parameter list: %s methods that have a custom if clause"
+                    + "must specify the entire primary key (expected primary keys of %s: %s)",
+                Delete.class.getSimpleName(), entityElement.getSimpleName(), primaryKeyTypes);
             return Optional.empty();
           } else {
             // restrict parameters to primary key length.
@@ -169,12 +153,11 @@ public class DaoDeleteMethodGenerator extends DaoMethodGenerator {
 
         primaryKeyParameterCount = primaryKeyParameters.size();
         if (!EntityUtils.areParametersValid(
-            context,
-            methodElement,
             entityElement,
             entityDefinition,
             primaryKeyParameters,
             Delete.class,
+            methodMessager,
             "do not operate on an entity instance and lack a custom where clause")) {
           return Optional.empty();
         }
@@ -239,13 +222,10 @@ public class DaoDeleteMethodGenerator extends DaoMethodGenerator {
     // Bind any remaining parameters, assuming they are values for a custom WHERE or IF clause
     if (nextParameterIndex < parameters.size()) {
       if (customIfClause.isEmpty() && customWhereClause.isEmpty()) {
-        context
-            .getMessager()
-            .error(
-                methodElement,
-                "Wrong number of parameters: %s methods can only have additional "
-                    + "parameters if they specify a custom WHERE or IF clause",
-                Delete.class.getSimpleName());
+        methodMessager.error(
+            "Wrong number of parameters: %s methods can only have additional "
+                + "parameters if they specify a custom WHERE or IF clause",
+            Delete.class.getSimpleName());
       }
       List<? extends VariableElement> bindMarkers =
           parameters.subList(nextParameterIndex, parameters.size());
@@ -293,14 +273,10 @@ public class DaoDeleteMethodGenerator extends DaoMethodGenerator {
         TypeMirror mirror = (TypeMirror) values.get(0).getValue();
         TypeElement element = EntityUtils.asEntityElement(mirror, typeParameters);
         if (values.size() > 1) {
-          context
-              .getMessager()
-              .warn(
-                  methodElement,
-                  "Too many entity classes: %s must have at most one 'entityClass' argument "
-                      + "(will use the first one: %s)",
-                  Delete.class.getSimpleName(),
-                  element.getSimpleName());
+          methodMessager.warn(
+              "Too many entity classes: %s must have at most one 'entityClass' argument "
+                  + "(will use the first one: %s)",
+              Delete.class.getSimpleName(), element.getSimpleName());
         }
         return element;
       }

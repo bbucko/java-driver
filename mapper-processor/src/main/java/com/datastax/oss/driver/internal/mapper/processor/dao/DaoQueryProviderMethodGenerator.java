@@ -17,6 +17,7 @@ package com.datastax.oss.driver.internal.mapper.processor.dao;
 
 import com.datastax.oss.driver.api.mapper.annotations.Entity;
 import com.datastax.oss.driver.api.mapper.annotations.QueryProvider;
+import com.datastax.oss.driver.internal.mapper.processor.MethodMessager;
 import com.datastax.oss.driver.internal.mapper.processor.ProcessorContext;
 import com.datastax.oss.driver.internal.mapper.processor.util.generation.GeneratedCodePatterns;
 import com.squareup.javapoet.ClassName;
@@ -40,9 +41,10 @@ public class DaoQueryProviderMethodGenerator extends DaoMethodGenerator {
   public DaoQueryProviderMethodGenerator(
       ExecutableElement methodElement,
       Map<Name, TypeElement> typeParameters,
+      MethodMessager methodMessager,
       DaoImplementationSharedCode enclosingClass,
       ProcessorContext context) {
-    super(methodElement, typeParameters, enclosingClass, context);
+    super(methodElement, typeParameters, methodMessager, enclosingClass, context);
   }
 
   @Override
@@ -110,15 +112,10 @@ public class DaoQueryProviderMethodGenerator extends DaoMethodGenerator {
           TypeMirror entityMirror = (TypeMirror) value.getValue();
           TypeElement entityElement = EntityUtils.asEntityElement(entityMirror, typeParameters);
           if (entityElement == null) {
-            context
-                .getMessager()
-                .error(
-                    methodElement,
-                    "Invalid annotation configuration: the elements in %s.entityHelpers "
-                        + "must be %s-annotated classes (offending element: %s)",
-                    QueryProvider.class.getSimpleName(),
-                    Entity.class.getSimpleName(),
-                    entityMirror);
+            methodMessager.error(
+                "Invalid annotation configuration: the elements in %s.entityHelpers "
+                    + "must be %s-annotated classes (offending element: %s)",
+                QueryProvider.class.getSimpleName(), Entity.class.getSimpleName(), entityMirror);
             // No need to keep going, compilation will fail anyway
             return Collections.emptyList();
           } else {

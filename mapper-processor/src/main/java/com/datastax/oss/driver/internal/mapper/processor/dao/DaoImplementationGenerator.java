@@ -25,6 +25,7 @@ import com.datastax.oss.driver.internal.core.util.concurrent.CompletableFutures;
 import com.datastax.oss.driver.internal.mapper.DaoBase;
 import com.datastax.oss.driver.internal.mapper.processor.GeneratedNames;
 import com.datastax.oss.driver.internal.mapper.processor.MethodGenerator;
+import com.datastax.oss.driver.internal.mapper.processor.MethodMessager;
 import com.datastax.oss.driver.internal.mapper.processor.ProcessorContext;
 import com.datastax.oss.driver.internal.mapper.processor.SingleFileCodeGenerator;
 import com.datastax.oss.driver.internal.mapper.processor.util.HierarchyScanner;
@@ -303,18 +304,22 @@ public class DaoImplementationGenerator extends SingleFileCodeGenerator
             .addSuperinterface(ClassName.get(interfaceElement));
 
     for (TypeMirror mirror : interfaces) {
-      TypeElement interfaceElement = (TypeElement) context.getTypeUtils().asElement(mirror);
+      TypeElement parentInterfaceElement = (TypeElement) context.getTypeUtils().asElement(mirror);
       Map<Name, TypeElement> typeParameters = parseTypeParameters(mirror);
 
-      for (Element child : interfaceElement.getEnclosedElements()) {
+      for (Element child : parentInterfaceElement.getEnclosedElements()) {
         if (child.getKind() == ElementKind.METHOD) {
           ExecutableElement methodElement = (ExecutableElement) child;
           Set<Modifier> modifiers = methodElement.getModifiers();
           if (!modifiers.contains(Modifier.STATIC) && !modifiers.contains(Modifier.DEFAULT)) {
+            MethodMessager methodMessager =
+                new MethodMessager(
+                    methodElement, interfaceElement, parentInterfaceElement, context);
             Optional<MethodGenerator> maybeGenerator =
                 context
                     .getCodeGeneratorFactory()
-                    .newDaoImplementationMethod(methodElement, typeParameters, this);
+                    .newDaoImplementationMethod(
+                        methodElement, typeParameters, methodMessager, this);
             if (!maybeGenerator.isPresent()) {
               context
                   .getMessager()

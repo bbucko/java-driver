@@ -28,6 +28,7 @@ import com.datastax.oss.driver.api.core.cql.SimpleStatement;
 import com.datastax.oss.driver.api.core.metadata.schema.ClusteringOrder;
 import com.datastax.oss.driver.api.mapper.annotations.CqlName;
 import com.datastax.oss.driver.api.mapper.annotations.Select;
+import com.datastax.oss.driver.internal.mapper.processor.MethodMessager;
 import com.datastax.oss.driver.internal.mapper.processor.ProcessorContext;
 import com.datastax.oss.driver.internal.mapper.processor.entity.EntityDefinition;
 import com.datastax.oss.driver.internal.mapper.processor.entity.PropertyDefinition;
@@ -53,9 +54,10 @@ public class DaoSelectMethodGenerator extends DaoMethodGenerator {
   public DaoSelectMethodGenerator(
       ExecutableElement methodElement,
       Map<Name, TypeElement> typeParameters,
+      MethodMessager methodMessager,
       DaoImplementationSharedCode enclosingClass,
       ProcessorContext context) {
-    super(methodElement, typeParameters, enclosingClass, context);
+    super(methodElement, typeParameters, methodMessager, enclosingClass, context);
   }
 
   protected Set<DaoReturnTypeKind> getSupportedReturnTypes() {
@@ -130,12 +132,11 @@ public class DaoSelectMethodGenerator extends DaoMethodGenerator {
     // If we have parameters for some primary key components, validate that the types match:
     if (!primaryKeyParameters.isEmpty()
         && !EntityUtils.areParametersValid(
-            context,
-            methodElement,
             entityElement,
             entityDefinition,
             primaryKeyParameters,
             Select.class,
+            methodMessager,
             "don't use a custom clause")) {
       return Optional.empty();
     }
@@ -234,12 +235,9 @@ public class DaoSelectMethodGenerator extends DaoMethodGenerator {
     List<String> tokens = ON_SPACES.splitToList(orderingSpec);
     ClusteringOrder clusteringOrder;
     if (tokens.size() != 2 || (clusteringOrder = parseClusteringOrder(tokens.get(1))) == null) {
-      context
-          .getMessager()
-          .error(
-              methodElement,
-              "Can't parse ordering '%s', expected a column name followed by ASC or DESC",
-              orderingSpec);
+      methodMessager.error(
+          "Can't parse ordering '%s', expected a column name followed by ASC or DESC",
+          orderingSpec);
       return;
     }
     methodBuilder.addCode(
